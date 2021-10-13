@@ -5,15 +5,14 @@ import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'dart:ui' as ui;
-import 'package:js/js.dart';
 
 import 'package:flutter/material.dart';
+import 'package:js/js.dart';
 
 import 'consts.dart';
 
-
 @JS()
-external void detectFace(dynamic rgba);
+external void detectFace(dynamic rgba, int width, int height);
 
 class CameraTest extends StatefulWidget {
   final bool enableAudio;
@@ -87,6 +86,8 @@ class _CameraTestState extends State<CameraTest> {
                 constraints: const BoxConstraints(maxHeight: 680),
                 child: WebCam(
                     controller: _vcvCameraController,
+                    width: videoWidth,
+                    height: videoHeight,
                     enableAudio: widget.enableAudio)),
           ],
         ),
@@ -130,11 +131,15 @@ class VCVCameraController {
 
 class WebCam extends StatefulWidget {
   final VCVCameraController controller;
+  final double width;
+  final double height;
   final bool enableAudio;
 
   const WebCam(
       {Key? key,
       required this.controller,
+      required this.width,
+      required this.height,
       this.enableAudio = enableAudioC})
       : super(key: key);
 
@@ -146,9 +151,6 @@ class _WebCamState extends State<WebCam> {
   final html.VideoElement _webcamVideoElement = html.VideoElement();
   final html.VideoElement _webcamVideoElementForIosBecauseItsTooSpecial =
       html.VideoElement();
-  final html.CanvasElement _canvasElement = html.CanvasElement(
-      width: videoWidth.toInt(),
-      height: videoHeight.toInt());
   html.MediaRecorder? recorder;
   html.MediaStream? _latestStreamHandler;
   var _currentUrl = '';
@@ -159,6 +161,8 @@ class _WebCamState extends State<WebCam> {
   var startupError = '';
 
   late Timer _timer;
+  late final html.CanvasElement _canvasElement = html.CanvasElement(
+      width: widget.width.toInt(), height: widget.height.toInt());
 
   final _key = UniqueKey();
   final _iosPreviewKey = UniqueKey();
@@ -286,12 +290,12 @@ class _WebCamState extends State<WebCam> {
   void switchCameraOn({Function(html.MediaRecorder)? onReady}) {
     html.window.navigator.mediaDevices?.getUserMedia({
       'video': {
-        'height': videoHeight,
-        'width': videoWidth,
+        'height': widget.height,
+        'width': widget.width,
         'facingMode': 'user',
         'frameRate': 15
       },
-      'audio': enableAudioC,
+      'audio': widget.enableAudio,
     }).then((streamHandle) {
       _latestStreamHandler = streamHandle;
 
@@ -427,10 +431,10 @@ class _WebCamState extends State<WebCam> {
   _hasFace() {
     // js.context.callMethod('detectFace', [_canvasElement.context2D, _webcamVideoElement]);
     _canvasElement.context2D.drawImage(_webcamVideoElement, 0, 0);
-    final imageData = _canvasElement.context2D.getImageData(
-        0, 0, videoWidth.toInt(), videoHeight.toInt());
+    final imageData = _canvasElement.context2D
+        .getImageData(0, 0, widget.width.toInt(), widget.height.toInt());
 
-    detectFace(imageData.data);
+    detectFace(imageData.data, widget.width.toInt(), widget.height.toInt());
 
     var state = js.JsObject.fromBrowserObject(js.context['state']);
     final bool hasFace = state['hasFace'];
