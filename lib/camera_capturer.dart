@@ -134,13 +134,15 @@ class WebCam extends StatefulWidget {
   final double width;
   final double height;
   final bool enableAudio;
+  final Function(dynamic)? onError;
 
   const WebCam(
       {Key? key,
       required this.controller,
       required this.width,
       required this.height,
-      this.enableAudio = enableAudioC})
+      this.enableAudio = enableAudioC,
+      this.onError})
       : super(key: key);
 
   @override
@@ -161,8 +163,15 @@ class _WebCamState extends State<WebCam> {
   var startupError = '';
 
   late Timer _timer;
-  late final html.CanvasElement _canvasElement = html.CanvasElement(
-      width: widget.width.toInt(), height: widget.height.toInt());
+
+  // late final mq = MediaQuery.of(context);
+  // late final isPortrait = mq.orientation == Orientation.portrait;
+  // late final _width = isPortrait ? widget.height : widget.width;
+  // late final _height = isPortrait ? widget.width : widget.height;
+  late final _width = widget.width;
+  late final _height = widget.height;
+  late final html.CanvasElement _canvasElement =
+      html.CanvasElement(width: _width.toInt(), height: _height.toInt());
 
   final _key = UniqueKey();
   final _iosPreviewKey = UniqueKey();
@@ -290,8 +299,8 @@ class _WebCamState extends State<WebCam> {
   void switchCameraOn({Function(html.MediaRecorder)? onReady}) {
     html.window.navigator.mediaDevices?.getUserMedia({
       'video': {
-        'height': widget.height,
-        'width': widget.width,
+        'height': _height,
+        'width': _width,
         'facingMode': 'user',
         'frameRate': 15
       },
@@ -304,13 +313,15 @@ class _WebCamState extends State<WebCam> {
       recorder = setupRecorder(streamHandle);
 
       onReady?.call(recorder!);
-    }).catchError((onError) {
-      errors.add('$onError');
-      print(onError);
+    }).catchError((error) {
+      errors.add('$error');
+      print(error);
 
       setState(() {
-        startupError = '$onError';
+        startupError = '$error';
       });
+
+      widget.onError?.call(error);
     });
   }
 
@@ -432,9 +443,9 @@ class _WebCamState extends State<WebCam> {
     // js.context.callMethod('detectFace', [_canvasElement.context2D, _webcamVideoElement]);
     _canvasElement.context2D.drawImage(_webcamVideoElement, 0, 0);
     final imageData = _canvasElement.context2D
-        .getImageData(0, 0, widget.width.toInt(), widget.height.toInt());
+        .getImageData(0, 0, _width.toInt(), _height.toInt());
 
-    detectFace(imageData.data, widget.width.toInt(), widget.height.toInt());
+    detectFace(imageData.data, _width.toInt(), _height.toInt());
 
     var state = js.JsObject.fromBrowserObject(js.context['state']);
     final bool hasFace = state['hasFace'];
